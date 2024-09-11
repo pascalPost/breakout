@@ -1,24 +1,38 @@
 const std = @import("std");
+const glfw = @import("mach-glfw");
+const gl = @import("gl");
+
+const glfw_log = std.log.scoped(.glfw);
+const gl_log = std.log.scoped(.gl);
 
 pub fn main() !void {
-    // Prints to stderr (it's a shortcut based on `std.io.getStdErr()`)
-    std.debug.print("All your {s} are belong to us.\n", .{"codebase"});
+    if (!glfw.init(.{})) {
+        glfw_log.err("failed to initialize GLFW: {?s}", .{glfw.getErrorString()});
+        return error.GLFWInitFailed;
+    }
+    defer glfw.terminate();
 
-    // stdout is for the actual output of your application, for example if you
-    // are implementing gzip, then only the compressed bytes should be sent to
-    // stdout, not any debugging messages.
-    const stdout_file = std.io.getStdOut().writer();
-    var bw = std.io.bufferedWriter(stdout_file);
-    const stdout = bw.writer();
+    const width: u32 = 800;
+    const height: u32 = 600;
 
-    try stdout.print("Run `zig build test` to run the tests.\n", .{});
+    const window = glfw.Window.create(width, height, "breakup", null, null, .{
+        .context_version_major = gl.info.version_major,
+        .context_version_minor = gl.info.version_minor,
+        .opengl_profile = .opengl_core_profile,
+        .opengl_forward_compat = true,
+    }) orelse {
+        glfw_log.err("failed to create GLFW window: {?s}", .{glfw.getErrorString()});
+        return error.GLFWCreateWindowFailed;
+    };
+    defer window.destroy();
 
-    try bw.flush(); // don't forget to flush!
-}
+    glfw.makeContextCurrent(window);
 
-test "simple test" {
-    var list = std.ArrayList(i32).init(std.testing.allocator);
-    defer list.deinit(); // try commenting this out and see if zig detects the memory leak!
-    try list.append(42);
-    try std.testing.expectEqual(@as(i32, 42), list.pop());
+    // Enable vsync to avoid unnecssary drawing
+    glfw.swapInterval(1);
+
+    while (!window.shouldClose()){
+        glfw.pollEvents();
+        window.swapBuffers();
+    }
 }
